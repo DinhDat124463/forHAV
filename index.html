@@ -235,12 +235,12 @@ window.addEventListener("resize", resize);
 
 
 /* =========================
-   BỘ ĐẾM MỞ KHÓA (23:00 tối nay)
+   BỘ ĐẾM MỞ KHÓA (21:02 tối nay)
 ========================= */
 
 function getUnlockTime() {
     const t = new Date();
-    t.setHours(20, 55, 0, 0);
+    t.setHours(21, 2, 0, 0);
     return t;
 }
 
@@ -280,8 +280,9 @@ function updateLockCountdown() {
     startBtn.disabled = true;
 }
 
+let lockTimerHandle = null;
 updateLockCountdown();
-const lockTimerHandle = setInterval(updateLockCountdown, 1000);
+lockTimerHandle = setInterval(updateLockCountdown, 1000);
 
 
 /* =========================
