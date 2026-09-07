@@ -1,0 +1,1476 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+
+<title>Mini Mario</title>
+
+<style>
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    touch-action: none;
+}
+
+body {
+    overflow: hidden;
+    background: #050817;
+    font-family: Arial, sans-serif;
+    color: white;
+}
+
+canvas {
+    display: block;
+    width: 100vw;
+    height: 100vh;
+    background: #07112f;
+}
+
+/* ===== NÚT ĐIỀU KHIỂN ===== */
+
+.controls {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 18px;
+
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+
+    padding: 0 20px;
+    pointer-events: none;
+}
+
+.left-buttons,
+.right-buttons {
+    display: flex;
+    gap: 12px;
+    pointer-events: auto;
+}
+
+button {
+    width: 70px;
+    height: 70px;
+
+    border: 3px solid white;
+    border-radius: 50%;
+
+    background: rgba(8,12,35,0.72);
+    box-shadow: 0 6px 20px rgba(0,0,0,0.45), inset 0 0 0 1px rgba(255,255,255,0.12);
+    color: white;
+
+    font-size: 30px;
+    font-weight: bold;
+
+    -webkit-tap-highlight-color: transparent;
+    user-select: none;
+}
+
+button:active {
+    background: rgba(255,255,255,0.35);
+    transform: scale(0.92);
+}
+
+#jump {
+    width: 80px;
+    height: 80px;
+    background: rgba(190,35,55,0.82);
+    box-shadow: 0 8px 24px rgba(0,0,0,0.5), 0 0 18px rgba(255,70,80,0.18);
+}
+
+/* Màn hình nhỏ */
+@media (max-width: 500px) {
+    button {
+        width: 62px;
+        height: 62px;
+        font-size: 25px;
+    }
+
+    #jump {
+        width: 72px;
+        height: 72px;
+    }
+}
+
+#startScreen {
+    position: fixed;
+    inset: 0;
+    z-index: 20;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background:
+        radial-gradient(circle at 50% 30%, rgba(83,100,180,.28), transparent 38%),
+        linear-gradient(#030617, #0c1535);
+}
+.start-card {
+    width: min(92vw, 560px);
+    padding: 38px 28px;
+    text-align: center;
+    border: 1px solid rgba(255,240,170,.45);
+    border-radius: 24px;
+    background: rgba(4,8,28,.86);
+    box-shadow: 0 20px 70px rgba(0,0,0,.6), 0 0 45px rgba(255,235,150,.08);
+}
+.logo {
+    font: 900 42px Arial, sans-serif;
+    letter-spacing: 2px;
+    color: #fff0a0;
+    text-shadow: 0 0 18px rgba(255,240,160,.55);
+}
+.subtitle {
+    margin: 14px 0 28px;
+    color: #e5e9ff;
+    font-size: 16px;
+    line-height: 1.5;
+}
+#startGame {
+    width: auto;
+    min-width: 210px;
+    height: 58px;
+    padding: 0 28px;
+    border-radius: 29px;
+    border: 2px solid white;
+    background: rgba(190,35,55,.9);
+    font-size: 17px;
+}
+.help {
+    margin-top: 20px;
+    color: #aeb7d8;
+    font-size: 13px;
+    line-height: 1.5;
+}
+
+</style>
+</head>
+
+<body>
+
+<div id="startScreen">
+    <div class="start-card">
+        <div class="logo">🌙 MINI MARIO</div>
+        <div class="subtitle">Phiêu lưu dưới ánh trăng cùng Chú Cuội Đạt</div>
+        <button id="startGame">BẮT ĐẦU CHƠI</button>
+        <div class="help">← → / A D để di chuyển · ↑ / W / Space để nhảy</div>
+    </div>
+</div>
+
+<canvas id="game"></canvas>
+
+<div class="controls">
+
+    <div class="left-buttons">
+        <button id="left">◀</button>
+        <button id="right">▶</button>
+    </div>
+
+    <div class="right-buttons">
+        <button id="jump">▲</button>
+    </div>
+
+</div>
+
+<script>
+
+const canvas = document.getElementById("game");
+const ctx = canvas.getContext("2d");
+
+function resize() {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+}
+
+resize();
+window.addEventListener("resize", resize);
+
+
+/* =========================
+   GAME
+========================= */
+
+const WORLD_WIDTH = 5200;
+
+const NIGHT_STARS = Array.from({length: 115}, (_, i) => ({
+    x: (i * 197) % WORLD_WIDTH,
+    y: 25 + ((i * 83) % 210),
+    r: 0.7 + ((i * 17) % 12) / 10,
+    phase: (i * 0.73) % (Math.PI * 2)
+}));
+
+const FIREFLIES = Array.from({length: 32}, (_, i) => ({
+    x: 80 + ((i * 311) % (WORLD_WIDTH - 160)),
+    y: 245 + ((i * 97) % 145),
+    phase: (i * 1.17) % (Math.PI * 2)
+}));
+
+const HILL_SILHOUETTES = [
+    {x:0, y:390, w:850, h:150},
+    {x:650, y:370, w:900, h:170},
+    {x:1400, y:395, w:1000, h:145},
+    {x:2250, y:365, w:900, h:175},
+    {x:3100, y:390, w:1100, h:150},
+    {x:4050, y:360, w:1050, h:180}
+];
+
+let cameraX = 0;
+let gameStarted = false;
+
+const keys = {
+    left: false,
+    right: false,
+    jump: false
+};
+
+const player = {
+    x: 150,
+    y: 300,
+    w: 38,
+    h: 48,
+
+    vx: 0,
+    vy: 0,
+
+    speed: 0.7,
+    maxSpeed: 7,
+
+    jumpPower: 15,
+
+    onGround: false
+};
+
+
+/* =========================
+   NỀN ĐẤT
+========================= */
+
+const ground = [
+    {x:0,    y:430, w:900,  h:100},
+    {x:1050, y:430, w:900,  h:100},
+    {x:2100, y:430, w:1000, h:100},
+    {x:3250, y:430, w:850,  h:100},
+    {x:4250, y:430, w:950,  h:100}
+];
+
+
+/* =========================
+   HỘP BÍ ẨN
+========================= */
+
+const boxes = [
+    {x:420,  y:300, w:48, h:48, hit:false, wish:"Chúc em pé HAV ngủ ngon 🌙"},
+    {x:500,  y:300, w:48, h:48, hit:false, wish:"Chúc bạn có những giấc mơ thật đẹp ✨"},
+    {x:760,  y:230, w:48, h:48, hit:false, wish:"🌙 Chúc em ngủ ngon, mơ thật đẹp nhé ✨"},
+    {x:1350, y:300, w:48, h:48, hit:false, wish:"💫 Ngủ thật sâu, thật êm và sáng mai thức dậy thật vui nhé 💖", wishBox:true},
+    {x:2500, y:280, w:48, h:48, hit:false, wish:"❤️ Chú Cuội Đạt chúc em một đêm thật bình yên, ngủ ngon nhé 🌙", wishBox:true}
+];
+
+
+/* =========================
+   ỐNG NƯỚC
+========================= */
+
+const pipes = [
+    {x:850, y:350, w:70, h:80},
+    {x:1780, y:350, w:70, h:80},
+    {x:2900, y:350, w:70, h:80},
+    {x:3800, y:350, w:70, h:80}
+];
+
+
+/* =========================
+   KẺ ĐỊCH
+========================= */
+
+const enemies = [
+    {x:650,  y:390, w:40, h:40, vx:1},
+    {x:1500, y:390, w:40, h:40, vx:-1},
+    {x:2300, y:390, w:40, h:40, vx:1},
+    {x:3400, y:390, w:40, h:40, vx:-1}
+];
+
+
+/* =========================
+   COIN
+========================= */
+
+const coins = [
+    {x:440,y:260,taken:false},
+    {x:520,y:260,taken:false},
+    {x:780,y:190,taken:false},
+    {x:1380,y:260,taken:false},
+    {x:2520,y:240,taken:false}
+];
+
+let score = 0;
+
+let activePower = null;
+let powerTimer = 0;
+let magicCooldown = 0;
+
+const powerItems = [];
+
+function spawnPowerItem(box) {
+    const types = ["moon", "lightning", "magic"];
+    const type = types[Math.floor(Math.random() * types.length)];
+    powerItems.push({
+        x: box.x + box.w / 2 - 14,
+        y: box.y - 30,
+        w: 28,
+        h: 28,
+        vx: 1.5,
+        vy: -5,
+        type
+    });
+}
+
+function drawPowerItem(item) {
+    ctx.save();
+    const colors = {
+        moon: "#fff0a0",
+        lightning: "#ffe23b",
+        magic: "#c77dff"
+    };
+    const symbols = {
+        moon: "☾",
+        lightning: "ϟ",
+        magic: "✦"
+    };
+    ctx.fillStyle = colors[item.type];
+    ctx.shadowColor = colors[item.type];
+    ctx.shadowBlur = 16;
+    ctx.font = "bold 26px Arial";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText(symbols[item.type], item.x + item.w / 2, item.y + item.h / 2);
+    ctx.restore();
+}
+
+function activatePower(type) {
+    activePower = type;
+    powerTimer = 600;
+    magicCooldown = 0;
+}
+
+
+
+
+
+/* =========================
+   CỜ ĐÍCH
+========================= */
+
+const finish = {
+    x:4900,
+    y:250,
+    w:20,
+    h:180
+};
+
+
+/* =========================
+   ĐIỀU KHIỂN ĐIỆN THOẠI
+========================= */
+
+function setupButton(id, key) {
+
+    const btn = document.getElementById(id);
+
+    btn.addEventListener("touchstart", e => {
+        e.preventDefault();
+        keys[key] = true;
+    }, { passive: false });
+
+    btn.addEventListener("touchend", e => {
+        e.preventDefault();
+        keys[key] = false;
+    });
+
+    btn.addEventListener("touchcancel", () => {
+        keys[key] = false;
+    });
+
+    /* Cho máy tính test game */
+    btn.addEventListener("mousedown", () => {
+        keys[key] = true;
+    });
+
+    btn.addEventListener("mouseup", () => {
+        keys[key] = false;
+    });
+
+    btn.addEventListener("mouseleave", () => {
+        keys[key] = false;
+    });
+}
+
+setupButton("left", "left");
+setupButton("right", "right");
+setupButton("jump", "jump");
+
+
+/* Bàn phím */
+
+document.addEventListener("keydown", e => {
+
+    if (e.key === "ArrowLeft" || e.key === "a")
+        keys.left = true;
+
+    if (e.key === "ArrowRight" || e.key === "d")
+        keys.right = true;
+
+    if (e.key === "ArrowUp" || e.key === " " || e.key === "w")
+        keys.jump = true;
+});
+
+document.addEventListener("keyup", e => {
+
+    if (e.key === "ArrowLeft" || e.key === "a")
+        keys.left = false;
+
+    if (e.key === "ArrowRight" || e.key === "d")
+        keys.right = false;
+
+    if (e.key === "ArrowUp" || e.key === " " || e.key === "w")
+        keys.jump = false;
+});
+
+
+/* =========================
+   VA CHẠM
+========================= */
+
+function collision(a,b) {
+
+    return (
+        a.x < b.x + b.w &&
+        a.x + a.w > b.x &&
+        a.y < b.y + b.h &&
+        a.y + a.h > b.y
+    );
+}
+
+
+/* =========================
+   UPDATE
+========================= */
+
+
+
+function update() {
+
+    /* Di chuyển */
+
+    if (keys.left) {
+        player.vx -= player.speed;
+    }
+
+    if (keys.right) {
+        player.vx += player.speed;
+    }
+
+    if (!keys.left && !keys.right) {
+        player.vx *= 0.8;
+    }
+
+    player.vx = Math.max(
+        -player.maxSpeed,
+        Math.min(player.maxSpeed, player.vx)
+    );
+
+
+    /* Nhảy */
+
+    if (keys.jump && player.onGround) {
+        player.vy = -(activePower === "moon" ? player.jumpPower * 1.65 : player.jumpPower);
+        player.onGround = false;
+    }
+
+
+    /* Trọng lực */
+
+    player.vy += 0.7;
+
+    player.x += player.vx;
+    player.y += player.vy;
+
+
+    /* Không cho đi ra ngoài */
+
+    if (player.x < 0)
+        player.x = 0;
+
+    if (player.x > WORLD_WIDTH - player.w)
+        player.x = WORLD_WIDTH - player.w;
+
+
+    /* Va chạm mặt đất */
+
+    player.onGround = false;
+
+    for (const g of ground) {
+
+        if (collision(player,g)) {
+
+            if (player.vy >= 0 &&
+                player.y + player.h - player.vy <= g.y) {
+
+                player.y = g.y - player.h;
+                player.vy = 0;
+                player.onGround = true;
+            }
+        }
+    }
+
+
+    /* Hộp bí ẩn */
+
+    for (const box of boxes) {
+
+        if (!box.hit && collision(player,box)) {
+
+            /*
+             * Nếu Mario đi từ phía dưới lên
+             */
+            if (player.vy < 0 &&
+                player.y > box.y) {
+
+                box.hit = true;
+
+                score += 100;
+
+                // 3 hộp cuối là những lời chúc ngủ ngon đặc biệt.
+                if (box.wish) {
+                    showGoodNight(box.wish);
+                    spawnWishBurst(box.x + box.w / 2, box.y + box.h / 2);
+                } else {
+                    spawnPowerItem(box);
+                }
+            }
+        }
+    }
+
+
+    /* Coin */
+
+    for (const coin of coins) {
+
+        if (!coin.taken) {
+
+            const c = {
+                x: coin.x - 10,
+                y: coin.y - 10,
+                w: 20,
+                h: 20
+            };
+
+            if (collision(player,c)) {
+
+                coin.taken = true;
+                score += 50;
+            }
+        }
+    }
+
+
+    /* Vật phẩm từ hộp */
+    for (const item of powerItems) {
+        item.vy += 0.35;
+        item.x += item.vx;
+        item.y += item.vy;
+
+        // Giữ vật phẩm trên mặt đất
+        for (const g of ground) {
+            if (collision(item, g) && item.vy >= 0) {
+                item.y = g.y - item.h;
+                item.vy = 0;
+                item.vx *= 0.98;
+            }
+        }
+
+        if (collision(player, item)) {
+            activatePower(item.type);
+            score += 150;
+            item.collected = true;
+        }
+    }
+
+    for (let i = powerItems.length - 1; i >= 0; i--) {
+        if (powerItems[i].collected || powerItems[i].y > canvas.height + 300)
+            powerItems.splice(i, 1);
+    }
+
+    if (powerTimer > 0) {
+        powerTimer--;
+        if (powerTimer === 0) activePower = null;
+    }
+
+    if (magicCooldown > 0) magicCooldown--;
+
+    /* Kẻ địch */
+
+    for (const enemy of enemies) {
+
+        if (enemy.dead) continue;
+
+        enemy.x += enemy.vx;
+
+        if (enemy.x < 100 ||
+            enemy.x > WORLD_WIDTH - 100) {
+
+            enemy.vx *= -1;
+        }
+
+        if (collision(player,enemy)) {
+
+            /* Sức mạnh điện / phép thuật đánh bại quái */
+            if ((activePower === "lightning" || activePower === "magic") && magicCooldown === 0) {
+                enemy.dead = true;
+                score += activePower === "magic" ? 500 : 300;
+                magicCooldown = 12;
+                continue;
+            }
+
+            /*
+             * Nhảy lên đầu kẻ địch
+             */
+
+            if (player.vy > 0 &&
+                player.y + player.h - player.vy <= enemy.y) {
+
+                enemy.dead = true;
+                player.vy = -10;
+                score += 200;
+
+            } else {
+
+                resetPlayer();
+            }
+        }
+    }
+
+
+    /* Xóa enemy chết */
+
+    for (let i=enemies.length-1; i>=0; i--) {
+
+        if (enemies[i].dead)
+            enemies.splice(i,1);
+    }
+
+
+    /* Rơi xuống vực */
+
+    if (player.y > canvas.height + 200) {
+
+        resetPlayer();
+    }
+
+
+    /* Camera */
+
+    cameraX = player.x - canvas.width * 0.35;
+
+    if (cameraX < 0)
+        cameraX = 0;
+
+    if (cameraX > WORLD_WIDTH - canvas.width)
+        cameraX = WORLD_WIDTH - canvas.width;
+
+
+    /* Đích */
+
+    if (player.x + player.w > finish.x) {
+
+        alert("🎉 Bạn đã hoàn thành màn chơi!\nĐiểm: " + score);
+
+        player.x = 150;
+        player.y = 300;
+
+        score = 0;
+        activePower = null;
+        powerTimer = 0;
+        magicCooldown = 0;
+        powerItems.length = 0;
+        wishParticles.length = 0;
+        player.vx = 0;
+        player.vy = 0;
+
+        for (const box of boxes)
+            box.hit = false;
+
+        for (const coin of coins)
+            coin.taken = false;
+    }
+}
+
+
+/* =========================
+   RESET
+========================= */
+
+
+let goodNightText = "";
+let goodNightTimer = 0;
+
+function showGoodNight(text) {
+    goodNightText = text;
+    goodNightTimer = 300;
+}
+
+const wishParticles = [];
+const MAX_WISH_PARTICLES = 28;
+
+function spawnWishBurst(x, y) {
+    const symbols = ["✨", "💖", "🌙", "⭐", "💫"];
+    for (let i = 0; i < 26; i++) {
+        const angle = Math.random() * Math.PI * 2;
+        const speed = 1.5 + Math.random() * 4.5;
+        wishParticles.push({
+            x, y,
+            vx: Math.cos(angle) * speed,
+            vy: Math.sin(angle) * speed - 1.5,
+            life: 55 + Math.random() * 45,
+            maxLife: 100,
+            size: 13 + Math.random() * 12,
+            symbol: symbols[Math.floor(Math.random() * symbols.length)],
+            rotation: Math.random() * Math.PI * 2,
+            spin: (Math.random() - 0.5) * 0.15
+        });
+    }
+}
+
+function updateWishParticles() {
+    for (const p of wishParticles) {
+        p.x += p.vx;
+        p.y += p.vy;
+        p.vy += 0.045;
+        p.vx *= 0.985;
+        p.rotation += p.spin;
+        p.life--;
+    }
+    for (let i = wishParticles.length - 1; i >= 0; i--) {
+        if (wishParticles[i].life <= 0) wishParticles.splice(i, 1);
+    }
+}
+
+function drawWishParticles() {
+    ctx.save();
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    for (const p of wishParticles) {
+        ctx.globalAlpha = Math.max(0, p.life / p.maxLife);
+        ctx.font = `${p.size}px Arial`;
+        ctx.translate(p.x, p.y);
+        ctx.rotate(p.rotation);
+        ctx.shadowColor = "#fff1a8";
+        ctx.shadowBlur = 16;
+        ctx.fillText(p.symbol, 0, 0);
+        ctx.rotate(-p.rotation);
+        ctx.translate(-p.x, -p.y);
+    }
+    ctx.restore();
+}
+
+function drawGoodNight() {
+    if (goodNightTimer <= 0) return;
+
+    const progress = Math.min(1, (240 - goodNightTimer) / 24, goodNightTimer / 35);
+    ctx.save();
+    ctx.globalAlpha = progress;
+
+    const boxW = Math.min(canvas.width - 40, 700);
+    const boxH = 112;
+    const x = (canvas.width - boxW) / 2;
+    const y = canvas.height * 0.20;
+
+    // Aura nhiều lớp.
+    ctx.shadowColor = "#ffe8a0";
+    ctx.shadowBlur = 38;
+    ctx.fillStyle = "rgba(7,10,35,0.94)";
+    ctx.beginPath();
+    ctx.roundRect(x, y, boxW, boxH, 22);
+    ctx.fill();
+
+    ctx.shadowBlur = 0;
+    const border = ctx.createLinearGradient(x, y, x + boxW, y + boxH);
+    border.addColorStop(0, "#fff0a0");
+    border.addColorStop(0.5, "#ffffff");
+    border.addColorStop(1, "#dca8ff");
+    ctx.strokeStyle = border;
+    ctx.lineWidth = 2.5;
+    ctx.stroke();
+
+    // Sao trang trí quanh khung.
+    ctx.fillStyle = "#fff4bd";
+    ctx.font = "18px Arial";
+    ctx.fillText("✨", x + 24, y + 27);
+    ctx.fillText("🌙", x + boxW - 25, y + 27);
+    ctx.fillText("💫", x + 38, y + boxH - 20);
+    ctx.fillText("⭐", x + boxW - 38, y + boxH - 20);
+
+    ctx.fillStyle = "#fff3b0";
+    ctx.font = "bold 19px Arial";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.shadowColor = "#ffe89a";
+    ctx.shadowBlur = 12;
+
+    // Chia câu dài thành 2 dòng nếu màn hình nhỏ.
+    let lines = [goodNightText];
+    if (canvas.width < 560 && goodNightText.length > 32) {
+        const cut = Math.floor(goodNightText.length / 2);
+        const space = goodNightText.indexOf(" ", cut);
+        const at = space > 0 ? space : cut;
+        lines = [goodNightText.slice(0, at), goodNightText.slice(at + 1)];
+    }
+
+    lines.forEach((line, i) => {
+        ctx.fillText(line, canvas.width / 2, y + 46 + i * 25);
+    });
+
+    ctx.shadowBlur = 0;
+    ctx.font = "12px Arial";
+    ctx.fillStyle = "rgba(255,245,190,0.75)";
+    ctx.fillText("💤 Một lời chúc dành riêng cho em 💖", canvas.width / 2, y + 94);
+
+    ctx.restore();
+}
+
+function resetPlayer() {
+
+    player.x = 150;
+    player.y = 300;
+
+    player.vx = 0;
+    player.vy = 0;
+
+}
+
+
+/* =========================
+   VẼ
+========================= */
+
+function draw() {
+
+    ctx.clearRect(
+        0,
+        0,
+        canvas.width,
+        canvas.height
+    );
+
+
+    /* Bầu trời đêm */
+    const sky = ctx.createLinearGradient(0, 0, 0, canvas.height);
+    sky.addColorStop(0, "#040817");
+    sky.addColorStop(0.55, "#0b1640");
+    sky.addColorStop(1, "#18264d");
+    ctx.fillStyle = sky;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    /* Sao */
+    ctx.save();
+    for (const star of NIGHT_STARS) {
+        const twinkle = 0.45 + 0.55 * Math.sin(performance.now() / 700 + star.phase);
+        ctx.globalAlpha = twinkle;
+        ctx.fillStyle = "#fff4bd";
+        ctx.beginPath();
+        ctx.arc(star.x, star.y, star.r, 0, Math.PI * 2);
+        ctx.fill();
+    }
+    ctx.restore();
+
+
+    ctx.save();
+
+    ctx.translate(-cameraX,0);
+
+    /* Mặt trăng + Chú Cuội "Đạt Đinh" */
+    // Mặt trăng + Chú Cuội được vẽ ở tọa độ màn hình, luôn cố định giữa màn hình.
+
+    /* Đồi xa */
+    ctx.save();
+    ctx.fillStyle = "#0a1230";
+    for (const h of HILL_SILHOUETTES) {
+        ctx.beginPath();
+        ctx.moveTo(h.x, h.y + h.h);
+        ctx.quadraticCurveTo(h.x + h.w * .45, h.y - 20, h.x + h.w, h.y + h.h);
+        ctx.lineTo(h.x + h.w, 530);
+        ctx.lineTo(h.x, 530);
+        ctx.closePath();
+        ctx.fill();
+    }
+    ctx.restore();
+
+    /* Đom đóm */
+    ctx.save();
+    for (const f of FIREFLIES) {
+        const a = 0.2 + 0.8 * (0.5 + 0.5 * Math.sin(performance.now()/500 + f.phase));
+        ctx.globalAlpha = a;
+        ctx.fillStyle = "#baff72";
+        ctx.shadowColor = "#baff72";
+        ctx.shadowBlur = 12;
+        ctx.beginPath();
+        ctx.arc(f.x, f.y, 2, 0, Math.PI*2);
+        ctx.fill();
+    }
+    ctx.restore();
+
+
+    /* Mây */
+
+    drawCloud(250,100);
+    drawCloud(900,80);
+    drawCloud(1600,110);
+    drawCloud(2500,80);
+    drawCloud(3600,120);
+    drawCloud(4500,90);
+
+
+    /* Đất */
+
+    for (const g of ground) {
+
+        ctx.fillStyle = "#8b4513";
+
+        ctx.fillRect(
+            g.x,
+            g.y,
+            g.w,
+            g.h
+        );
+
+        /* cỏ */
+
+        ctx.fillStyle = "#39a844";
+
+        ctx.fillRect(
+            g.x,
+            g.y,
+            g.w,
+            15
+        );
+
+        /* cỏ nhỏ phát sáng dưới ánh trăng */
+        ctx.fillStyle = "#4fcf68";
+        for (let gx = g.x + 12; gx < g.x + g.w - 8; gx += 34) {
+            ctx.fillRect(gx, g.y - 5, 3, 5);
+            ctx.fillRect(gx + 5, g.y - 3, 2, 3);
+        }
+    }
+
+
+    /* Hộp */
+
+    for (const box of boxes) {
+
+        const isWishBox = !!box.wish;
+        ctx.fillStyle =
+            box.hit ? "#9b6b35" : (isWishBox ? "#8f65d8" : "#f6a623");
+
+        ctx.fillRect(
+            box.x,
+            box.y,
+            box.w,
+            box.h
+        );
+
+        ctx.strokeStyle = "#8a4b08";
+        ctx.lineWidth = 4;
+
+        ctx.strokeRect(
+            box.x,
+            box.y,
+            box.w,
+            box.h
+        );
+
+        if (!box.hit) {
+            ctx.fillStyle = "white";
+            ctx.font = "bold 28px Arial";
+            ctx.textAlign = "center";
+            ctx.shadowColor = isWishBox ? "#e7c7ff" : "#fff4ad";
+            ctx.shadowBlur = 14;
+            ctx.fillText(
+                isWishBox ? "💖" : "🌙",
+                box.x + box.w/2,
+                box.y + 35
+            );
+            ctx.shadowBlur = 0;
+        }
+    }
+
+
+    /* Coin */
+
+    for (const coin of coins) {
+
+        if (!coin.taken) {
+
+            ctx.beginPath();
+
+            ctx.arc(
+                coin.x,
+                coin.y,
+                10,
+                0,
+                Math.PI * 2
+            );
+
+            ctx.fillStyle = "#ffd700";
+            ctx.fill();
+
+            ctx.strokeStyle = "#b8860b";
+            ctx.stroke();
+        }
+    }
+
+
+    /* Vật phẩm sức mạnh */
+    for (const item of powerItems) {
+        drawPowerItem(item);
+    }
+
+    /* Ống nước */
+
+    for (const pipe of pipes) {
+
+        ctx.fillStyle = "#18a83b";
+
+        ctx.fillRect(
+            pipe.x,
+            pipe.y,
+            pipe.w,
+            pipe.h
+        );
+
+        ctx.fillRect(
+            pipe.x - 8,
+            pipe.y,
+            pipe.w + 16,
+            20
+        );
+    }
+
+
+    /* Kẻ địch - quái vật sống động */
+
+    for (const enemy of enemies) {
+        const bob = Math.sin(performance.now() / 180 + enemy.x * 0.02) * 1.5;
+
+        ctx.save();
+        ctx.translate(0, bob);
+
+        /* bóng */
+        ctx.globalAlpha = 0.25;
+        ctx.fillStyle = "#000";
+        ctx.beginPath();
+        ctx.ellipse(enemy.x + 20, enemy.y + 42, 23, 5, 0, 0, Math.PI*2);
+        ctx.fill();
+        ctx.globalAlpha = 1;
+
+        /* thân */
+        ctx.fillStyle = "#8d3f28";
+        ctx.shadowColor = "#ff5a3d";
+        ctx.shadowBlur = 10;
+        ctx.beginPath();
+        ctx.arc(enemy.x + 20, enemy.y + 20, 20, Math.PI, 0);
+        ctx.fill();
+        ctx.fillRect(enemy.x, enemy.y + 20, 40, 20);
+
+        /* sừng */
+        ctx.shadowBlur = 0;
+        ctx.fillStyle = "#d7a16b";
+        ctx.beginPath();
+        ctx.moveTo(enemy.x + 5, enemy.y + 9);
+        ctx.lineTo(enemy.x + 11, enemy.y - 2);
+        ctx.lineTo(enemy.x + 15, enemy.y + 11);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.moveTo(enemy.x + 25, enemy.y + 11);
+        ctx.lineTo(enemy.x + 29, enemy.y - 2);
+        ctx.lineTo(enemy.x + 35, enemy.y + 9);
+        ctx.fill();
+
+        /* mắt phát sáng */
+        ctx.fillStyle = "#fff";
+        ctx.fillRect(enemy.x + 7, enemy.y + 11, 9, 10);
+        ctx.fillRect(enemy.x + 24, enemy.y + 11, 9, 10);
+        ctx.fillStyle = "#ffdf45";
+        ctx.fillRect(enemy.x + 10, enemy.y + 14, 4, 5);
+        ctx.fillRect(enemy.x + 27, enemy.y + 14, 4, 5);
+
+        /* miệng */
+        ctx.fillStyle = "#28131a";
+        ctx.beginPath();
+        ctx.arc(enemy.x + 20, enemy.y + 29, 8, 0, Math.PI);
+        ctx.fill();
+        ctx.fillStyle = "#f7d6c8";
+        ctx.fillRect(enemy.x + 15, enemy.y + 28, 4, 4);
+        ctx.fillRect(enemy.x + 21, enemy.y + 28, 4, 4);
+
+        ctx.restore();
+    }
+
+
+    /* Cờ */
+
+    ctx.fillStyle = "#333";
+
+    ctx.fillRect(
+        finish.x,
+        finish.y,
+        8,
+        finish.h
+    );
+
+    ctx.fillStyle = "#e53935";
+
+    ctx.beginPath();
+
+    ctx.moveTo(
+        finish.x + 8,
+        finish.y
+    );
+
+    ctx.lineTo(
+        finish.x + 70,
+        finish.y + 25
+    );
+
+    ctx.lineTo(
+        finish.x + 8,
+        finish.y + 50
+    );
+
+    ctx.closePath();
+
+    ctx.fill();
+
+
+    /* Mario */
+
+    drawMario(
+        player.x,
+        player.y
+    );
+
+
+    ctx.restore();
+
+    /* Mặt trăng + Chú Cuội: luôn nằm giữa màn hình */
+    drawChuCuoi(
+        canvas.width / 2,
+        Math.max(90, canvas.height * 0.14),
+        player.x,
+        player.y
+    );
+
+
+    /* Lời chúc ngủ ngon */
+    if (goodNightTimer > 0) goodNightTimer--;
+    updateWishParticles();
+    drawWishParticles();
+    drawGoodNight();
+
+    /* HUD */
+
+    ctx.save();
+    ctx.font = "bold 20px Arial";
+    const hudText = "⭐ Điểm: " + score;
+    const hudW = ctx.measureText(hudText).width + 24;
+    ctx.fillStyle = "rgba(4,8,23,0.72)";
+    ctx.fillRect(10, 10, hudW, 34);
+    ctx.strokeStyle = "rgba(255,255,255,0.22)";
+    ctx.strokeRect(10, 10, hudW, 34);
+    ctx.fillStyle = "#fff6c7";
+    ctx.shadowColor = "#ffd95a";
+    ctx.shadowBlur = 8;
+    ctx.fillText(hudText, 22, 34);
+    ctx.restore();
+}
+
+
+/* =========================
+   MARIO
+========================= */
+
+
+function drawChuCuoi(moonX, moonY, targetX, targetY) {
+
+    /* Mặt trăng lưỡi liềm */
+    ctx.save();
+    ctx.fillStyle = "#fff1b8";
+    ctx.shadowColor = "#fff0a0";
+    ctx.shadowBlur = 30;
+    ctx.beginPath();
+    ctx.arc(moonX, moonY, 48, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.shadowBlur = 0;
+    ctx.fillStyle = "#101b45";
+    ctx.beginPath();
+    ctx.arc(moonX + 21, moonY - 13, 43, 0, Math.PI * 2);
+    ctx.fill();
+
+    /* Các hố trên mặt trăng */
+    ctx.fillStyle = "rgba(190,165,105,0.28)";
+    for (const c of [
+        {x: moonX-28, y: moonY+10, r: 6},
+        {x: moonX-10, y: moonY+27, r: 4},
+        {x: moonX-34, y: moonY-18, r: 4}
+    ]) {
+        ctx.beginPath();
+        ctx.arc(c.x, c.y, c.r, 0, Math.PI*2);
+        ctx.fill();
+    }
+    ctx.restore();
+
+    /*
+     * Chú Cuội luôn nhìn về phía em pé HAV.
+     * Vì Cuội ở trên mặt trăng nên dùng targetX/targetY
+     * để tính hướng mắt và hơi xoay người.
+     */
+    const targetScreenX = targetX - cameraX + player.w / 2;
+    const targetScreenY = targetY + player.h / 2;
+    const dx = targetScreenX - moonX;
+    const dy = targetScreenY - moonY;
+    const look = Math.max(-1, Math.min(1, dx / 900));
+    const eyeShift = look * 3;
+    const bodyAngle = look * 0.12;
+
+    ctx.save();
+    ctx.translate(moonX - 2, moonY - 45);
+    ctx.rotate(bodyAngle);
+
+    /* Cành cây Cuội ngồi */
+    ctx.strokeStyle = "#6a3d22";
+    ctx.lineWidth = 7;
+    ctx.lineCap = "round";
+    ctx.beginPath();
+    ctx.moveTo(-30, 35);
+    ctx.quadraticCurveTo(-3, 20, 35, 31);
+    ctx.stroke();
+
+    /* Chân */
+    ctx.strokeStyle = "#25315f";
+    ctx.lineWidth = 9;
+    ctx.beginPath();
+    ctx.moveTo(-3, 19);
+    ctx.lineTo(-20, 37);
+    ctx.moveTo(10, 19);
+    ctx.lineTo(27, 35);
+    ctx.stroke();
+
+    /* Áo nâu */
+    ctx.fillStyle = "#76502d";
+    ctx.beginPath();
+    ctx.roundRect(-16, -7, 32, 30, 8);
+    ctx.fill();
+
+    /* Tay */
+    ctx.strokeStyle = "#ffc58a";
+    ctx.lineWidth = 7;
+    ctx.beginPath();
+    ctx.moveTo(-13, 0);
+    ctx.lineTo(-26, 14);
+    ctx.moveTo(13, 0);
+    ctx.lineTo(26, 13);
+    ctx.stroke();
+
+    /* Đầu */
+    ctx.fillStyle = "#ffc58a";
+    ctx.beginPath();
+    ctx.arc(0, -20, 15, 0, Math.PI * 2);
+    ctx.fill();
+
+    /* Tóc */
+    ctx.fillStyle = "#382318";
+    ctx.beginPath();
+    ctx.arc(0, -25, 15, Math.PI, Math.PI * 2);
+    ctx.fill();
+
+    /* Râu */
+    ctx.fillStyle = "#eee6d0";
+    ctx.beginPath();
+    ctx.moveTo(-8, -13);
+    ctx.quadraticCurveTo(0, 4, 9, -13);
+    ctx.closePath();
+    ctx.fill();
+
+    /* Mắt: luôn hướng theo em pé HAV */
+    ctx.fillStyle = "#fff";
+    ctx.beginPath();
+    ctx.arc(-6, -21, 4, 0, Math.PI*2);
+    ctx.arc(6, -21, 4, 0, Math.PI*2);
+    ctx.fill();
+
+    ctx.fillStyle = "#15101b";
+    ctx.beginPath();
+    ctx.arc(-6 + eyeShift, -21, 1.8, 0, Math.PI*2);
+    ctx.arc(6 + eyeShift, -21, 1.8, 0, Math.PI*2);
+    ctx.fill();
+
+    /* Tên Đạt Đinh */
+    ctx.rotate(-bodyAngle);
+    ctx.font = "bold 13px Arial";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    const label = "Chú Cuội Đạt";
+    const labelW = ctx.measureText(label).width + 12;
+
+    ctx.fillStyle = "rgba(3,6,20,0.78)";
+    ctx.fillRect(-labelW/2, -67, labelW, 20);
+    ctx.strokeStyle = "rgba(255,235,160,0.55)";
+    ctx.strokeRect(-labelW/2, -67, labelW, 20);
+
+    ctx.fillStyle = "#ffe89a";
+    ctx.shadowColor = "#ffe89a";
+    ctx.shadowBlur = 8;
+    ctx.fillText(label, 0, -57);
+
+    ctx.restore();
+}
+
+function drawMario(x,y) {
+
+    /* Bóng dưới chân */
+    ctx.save();
+    ctx.globalAlpha = 0.28;
+    ctx.fillStyle = "#000";
+    ctx.beginPath();
+    ctx.ellipse(x + 19, y + 51, 23, 6, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+
+    /* Tên */
+    ctx.save();
+    ctx.font = "bold 15px Arial";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    const name = "em pé HAV";
+    const tw = ctx.measureText(name).width;
+    ctx.fillStyle = "rgba(0,0,0,0.62)";
+    ctx.fillRect(x + 19 - tw/2 - 7, y - 29, tw + 14, 22);
+    ctx.strokeStyle = "rgba(255,255,255,0.22)";
+    ctx.strokeRect(x + 19 - tw/2 - 7, y - 29, tw + 14, 22);
+    ctx.fillStyle = "#ffe36e";
+    ctx.shadowColor = "#ffcc33";
+    ctx.shadowBlur = 9;
+    ctx.fillText(name, x + 19, y - 18);
+    ctx.restore();
+
+    /* Mũ */
+    ctx.save();
+    ctx.fillStyle = "#d9253f";
+    ctx.shadowColor = "#ff3b55";
+    ctx.shadowBlur = 8;
+    ctx.fillRect(x + 5, y, 28, 10);
+    ctx.fillRect(x, y + 8, 38, 7);
+    ctx.restore();
+
+    /* Tóc / tai */
+    ctx.fillStyle = "#713b24";
+    ctx.fillRect(x + 4, y + 14, 6, 13);
+    ctx.fillRect(x + 28, y + 14, 6, 13);
+
+    /* Mặt */
+    ctx.fillStyle = "#ffc58a";
+    ctx.fillRect(x + 7, y + 15, 25, 18);
+
+    /* Mắt */
+    ctx.fillStyle = "#1b1420";
+    ctx.fillRect(x + 12, y + 20, 3, 5);
+    ctx.fillRect(x + 24, y + 20, 3, 5);
+
+    /* Áo */
+    ctx.fillStyle = "#e32945";
+    ctx.fillRect(x + 5, y + 32, 28, 16);
+
+    /* Quần */
+    ctx.fillStyle = "#2455d6";
+    ctx.fillRect(x + 8, y + 32, 22, 16);
+
+    /* Khuy */
+    ctx.fillStyle = "#ffd447";
+    ctx.beginPath();
+    ctx.arc(x + 12, y + 35, 2.2, 0, Math.PI*2);
+    ctx.arc(x + 26, y + 35, 2.2, 0, Math.PI*2);
+    ctx.fill();
+
+    /* Giày */
+    ctx.fillStyle = "#5a2d16";
+    ctx.fillRect(x, y + 44, 16, 6);
+    ctx.fillRect(x + 23, y + 44, 16, 6);
+
+    ctx.restore();
+}
+
+
+/* =========================
+   MÂY
+========================= */
+
+function drawCloud(x,y) {
+
+    ctx.fillStyle = "white";
+
+    ctx.beginPath();
+
+    ctx.arc(x,y,25,0,Math.PI*2);
+    ctx.arc(x+30,y-10,30,0,Math.PI*2);
+    ctx.arc(x+65,y,25,0,Math.PI*2);
+
+    ctx.fill();
+
+    ctx.fillRect(
+        x-5,
+        y,
+        75,
+        25
+    );
+}
+
+
+/* =========================
+   GAME LOOP
+========================= */
+
+function gameLoop() {
+
+    if (gameStarted) update();
+    draw();
+
+    requestAnimationFrame(gameLoop);
+}
+
+document.getElementById("startGame").addEventListener("click", () => {
+    gameStarted = true;
+    document.getElementById("startScreen").style.display = "none";
+    player.x = 150;
+    player.y = 300;
+    player.vx = 0;
+    player.vy = 0;
+});
+
+document.addEventListener("keydown", e => {
+    if (["ArrowLeft", "ArrowRight", "ArrowUp", " "].includes(e.key))
+        e.preventDefault();
+
+    if (!gameStarted && (e.key === "Enter" || e.key === " ")) {
+        gameStarted = true;
+        document.getElementById("startScreen").style.display = "none";
+    }
+}, { passive: false });
+
+gameLoop();
+
+</script>
+
+</body>
+</html> 
