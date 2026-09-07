@@ -138,11 +138,51 @@ button:active {
     background: rgba(190,35,55,.9);
     font-size: 17px;
 }
+#startGame:disabled {
+    background: rgba(80,85,110,.55);
+    border-color: rgba(255,255,255,.35);
+    color: rgba(255,255,255,.55);
+    cursor: not-allowed;
+}
 .help {
     margin-top: 20px;
     color: #aeb7d8;
     font-size: 13px;
     line-height: 1.5;
+}
+
+/* ===== BỘ ĐẾM MỞ KHÓA ===== */
+
+#lockInfo {
+    margin: 0 0 22px;
+    padding: 16px 18px;
+    border-radius: 16px;
+    border: 1px solid rgba(199,125,255,.4);
+    background: rgba(20,14,45,.55);
+}
+
+#lockLabel {
+    color: #cbb8ff;
+    font-size: 13px;
+    letter-spacing: .3px;
+}
+
+#lockCountdown {
+    margin-top: 6px;
+    font-size: 30px;
+    font-weight: 900;
+    letter-spacing: 1px;
+    color: #fff0a0;
+    text-shadow: 0 0 16px rgba(255,235,150,.5);
+    font-variant-numeric: tabular-nums;
+}
+
+#lockInfo.unlocked {
+    border-color: rgba(255,235,150,.55);
+}
+
+#lockInfo.unlocked #lockLabel {
+    color: #ffe89a;
 }
 
 </style>
@@ -154,7 +194,13 @@ button:active {
     <div class="start-card">
         <div class="logo">🌙 MINI MARIO</div>
         <div class="subtitle">Phiêu lưu dưới ánh trăng cùng Chú Cuội Đạt</div>
-        <button id="startGame">BẮT ĐẦU CHƠI</button>           
+
+        <div id="lockInfo">
+            <div id="lockLabel">Game sẽ mở khóa lúc 23:00 tối nay</div>
+            <div id="lockCountdown">--:--:--</div>
+        </div>
+
+        <button id="startGame" disabled>BẮT ĐẦU CHƠI</button>
         <div class="help">← → / A D để di chuyển · ↑ / W / Space để nhảy</div>
     </div>
 </div>
@@ -186,6 +232,56 @@ function resize() {
 
 resize();
 window.addEventListener("resize", resize);
+
+
+/* =========================
+   BỘ ĐẾM MỞ KHÓA (23:00 tối nay)
+========================= */
+
+function getUnlockTime() {
+    const t = new Date();
+    t.setHours(20, 55, 0, 0);
+    return t;
+}
+
+function pad(n) {
+    return String(n).padStart(2, "0");
+}
+
+function updateLockCountdown() {
+
+    const startBtn = document.getElementById("startGame");
+    const lockLabel = document.getElementById("lockLabel");
+    const lockCountdown = document.getElementById("lockCountdown");
+    const lockInfo = document.getElementById("lockInfo");
+
+    const now = new Date();
+    const unlockAt = getUnlockTime();
+    const diff = unlockAt - now;
+
+    if (diff <= 0) {
+
+        /* Đã tới giờ, mở khóa */
+        lockInfo.classList.add("unlocked");
+        lockLabel.textContent = "Đã đến giờ rồi nè 💖";
+        lockCountdown.textContent = "MỞ KHÓA!";
+        startBtn.disabled = false;
+
+        clearInterval(lockTimerHandle);
+        return;
+    }
+
+    const totalSeconds = Math.floor(diff / 1000);
+    const h = Math.floor(totalSeconds / 3600);
+    const m = Math.floor((totalSeconds % 3600) / 60);
+    const s = totalSeconds % 60;
+
+    lockCountdown.textContent = pad(h) + ":" + pad(m) + ":" + pad(s);
+    startBtn.disabled = true;
+}
+
+updateLockCountdown();
+const lockTimerHandle = setInterval(updateLockCountdown, 1000);
 
 
 /* =========================
@@ -1451,6 +1547,7 @@ function gameLoop() {
 }
 
 document.getElementById("startGame").addEventListener("click", () => {
+    if (document.getElementById("startGame").disabled) return;
     gameStarted = true;
     document.getElementById("startScreen").style.display = "none";
     player.x = 150;
@@ -1463,7 +1560,8 @@ document.addEventListener("keydown", e => {
     if (["ArrowLeft", "ArrowRight", "ArrowUp", " "].includes(e.key))
         e.preventDefault();
 
-    if (!gameStarted && (e.key === "Enter" || e.key === " ")) {
+    if (!gameStarted && !document.getElementById("startGame").disabled &&
+        (e.key === "Enter" || e.key === " ")) {
         gameStarted = true;
         document.getElementById("startScreen").style.display = "none";
     }
@@ -1474,4 +1572,4 @@ gameLoop();
 </script>
 
 </body>
-</html> 
+</html>
