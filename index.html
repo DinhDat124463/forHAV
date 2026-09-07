@@ -154,8 +154,7 @@ button:active {
     <div class="start-card">
         <div class="logo">🌙 MINI MARIO</div>
         <div class="subtitle">Phiêu lưu dưới ánh trăng cùng Chú Cuội Đạt</div>
-        <button id="startGame">BẮT ĐẦU CHƠI</button>
-           <div class="subtitle">Trước khi chơi hãy xoay ngang điện thoại</div>
+        <button id="startGame">BẮT ĐẦU CHƠI</button>           
         <div class="help">← → / A D để di chuyển · ↑ / W / Space để nhảy</div>
     </div>
 </div>
@@ -265,8 +264,9 @@ const boxes = [
      {x:420,  y:300, w:48, h:48, hit:false, wish:"5 chiếc hộp bí mật đang chờ em... em có tò mò không? 🌙"},
     {x:500,  y:300, w:48, h:48, hit:false, wish:"Trong hộp này có thể là lời tỏ tình... 👀"},
     {x:760,  y:230, w:48, h:48, hit:false, wish:"Sắp gần tới bí mật lớn nhất rồi đó, ráng thêm chút nữa nha ✨"},
-    {x:1350, y:300, w:48, h:48, hit:false, wish:"🎉 Chúc mừng bạn vừa mở hộp... rỗng. Cảm ơn đã tin tưởng Đạt Đinh 😂", wishBox:true},
-    {x:2500, y:280, w:48, h:48, hit:false, wish:"❤️ Khuya rồi mà vẫn cày game, không mau đi ngủ đi.Hay em mong chờ điều gì trong mấy chiếc hộp vô nghĩa này hả", wishBox:true}
+    {x:1350, y:300, w:48, h:48, hit:false, wish:"🎉 Chúc mừng bạn vừa mở hộp... rỗng.", wishBox:true},
+     {x:1750, y:300, w:48, h:48, hit:false, wish:"🎉 Tiếc ghê lại thêm 1 hộp rỗng nữa rồi.", wishBox:true},
+ {x:2500, y:280, w:48, h:48, hit:false, wish:"❤️ Khuya rồi mà vẫn cày game, không mau đi ngủ đi.\nHay em mong chờ điều gì trong mấy chiếc hộp vô nghĩa này hả", wishBox:true}
 ];
 
 
@@ -686,7 +686,7 @@ function update() {
 
     if (player.x + player.w > finish.x) {
 
-        alert("🎉 Bạn đã hoàn thành màn chơi!\nĐiểm: " + score);
+        alert("🎉 Tắt máy đi ngủ mauuuuuuuuuuuuuuuuuuu!");
 
         player.x = 150;
         player.y = 300;
