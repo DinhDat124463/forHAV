@@ -155,6 +155,7 @@ button:active {
         <div class="logo">🌙 MINI MARIO</div>
         <div class="subtitle">Phiêu lưu dưới ánh trăng cùng Chú Cuội Đạt</div>
         <button id="startGame">BẮT ĐẦU CHƠI</button>
+           <div class="subtitle">Trước khi chơi hãy xoay ngang điện thoại</div>
         <div class="help">← → / A D để di chuyển · ↑ / W / Space để nhảy</div>
     </div>
 </div>
@@ -261,25 +262,12 @@ const ground = [
 ========================= */
 
 const boxes = [
-    {x:420,  y:300, w:48, h:48, hit:false, wish:"Chúc em pé HAV ngủ ngon 🌙"},
-    {x:500,  y:300, w:48, h:48, hit:false, wish:"Chúc bạn có những giấc mơ thật đẹp ✨"},
-    {x:760,  y:230, w:48, h:48, hit:false, wish:"🌙 Chúc em ngủ ngon, mơ thật đẹp nhé ✨"},
-    {x:1350, y:300, w:48, h:48, hit:false, wish:"💫 Ngủ thật sâu, thật êm và sáng mai thức dậy thật vui nhé 💖", wishBox:true},
-    {x:2500, y:280, w:48, h:48, hit:false, wish:"❤️ Chú Cuội Đạt chúc em một đêm thật bình yên, ngủ ngon nhé 🌙", wishBox:true}
+     {x:420,  y:300, w:48, h:48, hit:false, wish:"5 chiếc hộp bí mật đang chờ em... em có tò mò không? 🌙"},
+    {x:500,  y:300, w:48, h:48, hit:false, wish:"Trong hộp này có thể là lời tỏ tình... 👀"},
+    {x:760,  y:230, w:48, h:48, hit:false, wish:"Sắp gần tới bí mật lớn nhất rồi đó, ráng thêm chút nữa nha ✨"},
+    {x:1350, y:300, w:48, h:48, hit:false, wish:"🎉 Chúc mừng bạn vừa mở hộp... rỗng. Cảm ơn đã tin tưởng Đạt Đinh 😂", wishBox:true},
+    {x:2500, y:280, w:48, h:48, hit:false, wish:"❤️ Khuya rồi mà vẫn cày game, không mau đi ngủ đi.Hay em mong chờ điều gì trong mấy chiếc hộp vô nghĩa này hả", wishBox:true}
 ];
-
-
-/* =========================
-   ỐNG NƯỚC
-========================= */
-
-const pipes = [
-    {x:850, y:350, w:70, h:80},
-    {x:1780, y:350, w:70, h:80},
-    {x:2900, y:350, w:70, h:80},
-    {x:3800, y:350, w:70, h:80}
-];
-
 
 /* =========================
    KẺ ĐỊCH
